@@ -124,6 +124,23 @@ objects:
     - type: ConfigChange
     test: false
 - apiVersion: v1
+  kind: Secret
+  metadata:
+    name: sonarqubeui-cookie
+    labels:
+      app: sonarqube
+  type: Opaque
+  stringData:
+    session_secret: NU_SONARQUBE_UI_COOKIE
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: privilegeduser
+    labels:
+      app: sonarqube
+    annotations:
+      serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"sonarqube"}}'
+- apiVersion: v1
   kind: DeploymentConfig
   metadata:
     labels:
@@ -159,6 +176,26 @@ objects:
             securityContext:
               privileged: true
         containers:
+        - name: oauth-proxy
+          image: openshift/oauth-proxy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 8443
+            name: public
+          args:
+          - --https-address=:8443
+          - --provider=openshift
+          - --openshift-service-account=privilegeduser
+          - --upstream=http://localhost:9000
+          - --tls-cert=/etc/tls/private/tls.crt
+          - --tls-key=/etc/tls/private/tls.key
+          - --cookie-secret-file=/etc/proxy/secrets/session_secret
+          - --openshift-sar={"namespace":"${NAMESPACE}","resource":"project","resourceName":"${NAMESPACE}","verb":"view"}
+          volumeMounts:
+          - mountPath: /etc/tls/private
+            name: sonarqube-ui-tls
+          - mountPath: /etc/proxy/secrets
+            name: sonarqubeui-cookie
         - env:
           - name: SONARQUBE_JDBC_PASSWORD
             value: "${POSTGRESQL_PASSWORD}"
@@ -197,6 +234,13 @@ objects:
               cpu: 750m
               memory: 1024Mi
           terminationMessagePath: /dev/termination-log
+        volumes:
+        - name: sonarqube-ui-tls
+          secret:
+            secretName: sonarqube-ui-tls
+        - name: sonarqubeui-cookie
+          secret:
+            secretName: sonarqubeui-cookie
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         resources:
@@ -236,6 +280,7 @@ objects:
   kind: Service
   metadata:
     annotations:
+      service.alpha.openshift.io/serving-cert-secret-name: sonarqube-ui-tls
       service.alpha.openshift.io/dependencies: '[{"name":"postgresql","namespace":"","kind":"Service"}]'
     name: sonarqube
     labels:
@@ -246,6 +291,10 @@ objects:
       port: 9000
       protocol: TCP
       targetPort: 9000
+    - name: 8443-tcp
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
     selector:
       app: sonarqube
       deploymentconfig: sonarqube
@@ -263,8 +312,15 @@ objects:
       kind: Service
       name: sonarqube
     port:
-      targetPort: 9000-tcp
+      targetPort: 8443-tcp
+    tls:
+      termination: Reencrypt
 parameters:
+- name: NAMESPACE
+  displayName: Project name where this is being installed
+  description: Perhaps, there is a better way to get the project name from the environment/runtime/etc...
+  value: ci-cd
+  required: true
 - name: DATABASE_SERVICE_NAME
   displayName: Database Service Name
   description: The name of the OpenShift Service exposed for the database.
