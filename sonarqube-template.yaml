@@ -312,9 +312,9 @@ objects:
       kind: Service
       name: sonarqube
     port:
-      targetPort: 8443-tcp
+      targetPort: 9000-tcp
     tls:
-      termination: Reencrypt
+      termination: Edge
 parameters:
 - name: NAMESPACE
   displayName: Project name where this is being installed

@@ -29,7 +29,7 @@ RUN yum -y install epel-release \
     && rm /tmp/sonarqube.zip*
 ADD root /
 
-ADD https://github.com/rht-labs/sonar-auth-openshift/releases/latest/download/sonar-auth-openshift-plugin.jar  /opt/sonarqube/extensions-init/plugins/
+ADD https://github.com/rht-labs/sonar-auth-openshift/releases/latest/download/sonar-auth-openshift-plugin.jar  /opt/sonarqube/extensions/plugins/
 
 RUN useradd -r sonar \
     && chmod 775 $SONARQUBE_HOME/bin/run_sonarqube.sh \
