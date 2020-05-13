@@ -206,6 +206,8 @@ objects:
           image: sonarqube:latest
           args:
           - -Dsonar.auth.openshift.isEnabled=true
+          - -Dkubernetes.service=https://ep-test.northeastern.edu:8443/
+          - -Dignore.certs=true
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
