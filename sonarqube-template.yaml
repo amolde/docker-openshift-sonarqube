@@ -204,6 +204,8 @@ objects:
           - name: SONARQUBE_JDBC_USERNAME
             value: "${POSTGRESQL_USER}"
           image: sonarqube:latest
+          args:
+          - -Dsonar.auth.openshift.isEnabled=true
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
